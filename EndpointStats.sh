@@ -3,11 +3,27 @@
 #It will output it all ot a file in /tmp called endpointstats
 #A potentential cron to have this run hourly and tar at night could be:
 #0 * * * * /root/EndpointStats.sh
-#0 0 * * * tar -czf /tmp/EndpointStats-`date +%m%d%Y`.tar.gz /tmp/endpointstats -v
 
-DESTINATION_FOLDER="/tmp/endpointstats"
+DESTINATION_FOLDER="/tmp/EndpointStats"
 
 mkdir -p $DESTINATION_FOLDER
+
+#You pass a pid and we will create a folder, if needed, as well as write many attributes about it to file.
+getFDInfoForPid() {
+    local pid=$1
+    mkdir -p $DESTINATION_FOLDER/$pid
+    cat /proc/$pid/limits > $DESTINATION_FOLDER/$pid/limits.out
+    #This gives us directory listing for fd folder
+    echo `date` >> $DESTINATION_FOLDER/$pid/fd-ls-alh.out
+    ls -alh /proc/$pid/fd >> $DESTINATION_FOLDER/$pid/fd-ls-alh.out
+    echo `date` >> $DESTINATION_FOLDER/$pid/fd-count.out
+    ls /proc/$pid/fd | wc -l >> $DESTINATION_FOLDER/$pid/fd-count.out
+    #This gives us directory listing for fdinfo folder
+    echo `date` >> $DESTINATION_FOLDER/$pid/fdinfo-ls-alh.out
+    ls -alh /proc/$pid/fdinfo >> $DESTINATION_FOLDER/$pid/fdinfo-ls-alh.out
+    echo `date` >> $DESTINATION_FOLDER/$pid/fdinfo-count.out
+    ls /proc/$pid/fd | wc -l >> $DESTINATION_FOLDER/$pid/fdinfo-count.out
+}
 
 #Netstat and process information
 echo `date` >> $DESTINATION_FOLDER/netstat.out
@@ -37,20 +53,11 @@ cat /etc/security/limits.conf > $DESTINATION_FOLDER/security-limits.conf
 for pid in `pgrep -u netwitness`;
     do
     #echo "checking /proc folder of $pid"
-    mkdir -p $DESTINATION_FOLDER/$pid
-    cat /proc/$pid/limits > $DESTINATION_FOLDER/$pid/limits.out
-    echo `date` >> $DESTINATION_FOLDER/$pid/fdinfo-ls-alh.out
-    ls -alh /proc/$pid/fd* >> $DESTINATION_FOLDER/$pid/fdinfo-ls-alh.out
+    getFDInfoForPid $pid 
 done;
 
 for pid in `pgrep -u nginx`;
     do
     #echo "checking /proc folder of $pid"
-    mkdir -p $DESTINATION_FOLDER/$pid
-    cat /proc/$pid/limits > $DESTINATION_FOLDER/$pid/limits.out
-    echo `date` >> $DESTINATION_FOLDER/$pid/fdinfo-ls-alh.out
-    ls -alh /proc/$pid/fd* >> $DESTINATION_FOLDER/$pid/fdinfo-ls-alh.out
+    getFDInfoForPid $pid 
 done;
-
-#A potentential cron to have this run hourly and tar at night could be:
-#0 * * * * /root/EndpointStats.sh

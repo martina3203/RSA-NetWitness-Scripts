@@ -5,6 +5,17 @@ DESTINATION_FOLDER="/tmp/rabbitstats"
 
 mkdir -p $DESTINATION_FOLDER
 
+#You pass a pid and we will create a folder, if needed, as well as write many attributes about it to file.
+getFDInfoForPid() {
+    local pid=$1
+    mkdir -p $DESTINATION_FOLDER/$pid
+    cat /proc/$pid/limits > $DESTINATION_FOLDER/$pid/limits.out
+    echo `date` >> $DESTINATION_FOLDER/$pid/fd-ls-alh.out
+    ls -alh /proc/$pid/fd >> $DESTINATION_FOLDER/$pid/fd-ls-alh.out
+    echo `date` >> $DESTINATION_FOLDER/$pid/fdinfo-ls-alh.out
+    ls -alh /proc/$pid/fdinfo >> $DESTINATION_FOLDER/$pid/fdinfo-ls-alh.out
+}
+
 #Collecting information presented by the service
 /usr/sbin/rabbitmqctl status > $DESTINATION_FOLDER/rabbitmq-status.out
 /usr/sbin/rabbitmqctl report > $DESTINATION_FOLDER/rabbitmq-report.out
@@ -34,9 +45,7 @@ cat /etc/security/limits.conf > $DESTINATION_FOLDER/security-limits.conf
 for pid in `ps aux | grep -i rabbitmq | grep -v "grep" | awk '{print $2}'| grep -i [0-9]`; 
     do 
     #echo "checking /proc folder of $pid" 
-    mkdir -p $DESTINATION_FOLDER/$pid
-    cat /proc/$pid/limits > $DESTINATION_FOLDER/$pid/limits.out
-    ls -alh /proc/$pid/fd* > $DESTINATION_FOLDER/$pid/fdinfo-ls-alh.out
+    getFDInfoForPid $pid
 done;
 
 #I choose to omit this when I wish to add more to my final archive
