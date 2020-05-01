@@ -27,8 +27,21 @@ mkdir -p $DESTINATION_FOLDER/systemd
 #Forcing a clean of yum to make sure we get correct rpm information.
 yum clean all -q 2> /dev/null
 
+#We are checking for a mongo instance. We will be changing the password before proceeding.
+if systemctl list-units --all | grep mongod ; then
+    echo "A Mongo Instance has been detected on this device. Please provide the deployment password of the old environment so that we may login to mongo to change it to match the deployment password of the new environment."
+    echo "If you are unsure about the old password, please use KB 000037015 to reset the Mongo password in the backend then rerun this script."
+    echo "If the password is the same because it just is or you have already changed the password, just type the same password twice."
+    read -p 'Current Deployment password currently being used by the mongo: ' oldPassword
+    read -p 'New Deployment password: ' newPassword
+    mongo -u deploy_admin -p "${oldPassword}" --authenticationDatabase admin --eval "db=db.getSiblingDB(\"admin\");db.changeUserPassword(\"deploy_admin\",\"${newPassword}\")" \
+    || echo "Failed to change deploy_admin password in mongo server...please use KB 000037015 to reset the Mongo password in the backend before trying the script again."; exit
+    mkdir -p /etc/netwitness/platform/mongo
+    touch /etc/netwitness/platform/mongo/mongo.registered
+fi
+
 #Stop any relevant services
-serviceNames=("nwappliance" "nwlogcollector" "nwlogdecoder" "nwconcentrator" "nwbroker" "nwarchiver" "nwdecoder" "mongod" "rabbitmq-server" "rsa-nw-contexthub-server" "rsa-nw-correlation-server" "rsa-nw-esa-analytics-server")
+serviceNames=("nwappliance" "nwlogcollector" "nwlogdecoder" "nwconcentrator" "nwbroker" "nwarchiver" "nwdecoder" "mongod" "rabbitmq-server" "rsa-nw-contexthub-server" "rsa-nw-correlation-server" "rsa-nw-esa-analytics-server" "rsa-nw-node-infra-server")
 echo "Stopping services before going further. If this seems like it can be stuck for an excessive amount of time, you may Ctrl + C and rerun the script after you manually stop them."
 for service in ${serviceNames[@]}; do
     if systemctl is-active --quiet $service ; then
@@ -65,7 +78,6 @@ done
 infraServerDirectory="/etc/netwitness/node-infra-server"
 if [ -d $infraServerDirectory ]; then
     echo "Moving $infraServerDirectory to $DESTINATION_FOLDER"
-    #yum remove rsa-nw-node-infra-server -y 2> /dev/null
     mv $infraServerDirectory $DESTINATION_FOLDER
     mv /etc/systemd/system/rsa-nw-node-infra-server.service.d/* $DESTINATION_FOLDER/systemd
     systemctl daemon-reload
@@ -75,29 +87,22 @@ fi
 contexthubServerDirectory="/etc/netwitness/contexthub-server"
 if [ -d $contexthubServerDirectory ]; then
     echo "Moving $contexthubServerDirectory to $DESTINATION_FOLDER"
-    #yum remove  rsa-nw-contexthub-server -y 2> /dev/null
     mv $contexthubServerDirectory $DESTINATION_FOLDER
     mv /etc/systemd/system/rsa-nw-contexthub-server.service.d/* $DESTINATION_FOLDER/systemd
-    #The purpose of these two lines is so that Chef knows not try and reconfigure an already configured mongo.
-    mkdir -p /etc/netwitness/platform/mongo
-    touch /etc/netwitness/platform/mongo/mongo.registered
     systemctl daemon-reload
 fi
 
 correlationServerDirectory="/etc/netwitness/correlation-server"
 if [ -d $correlationServerDirectory ]; then
     echo "Moving $correlationServerDirectory to $DESTINATION_FOLDER"
-    #yum remove rsa-nw-node-infra-server -y 2> /dev/null
     mv $correlationServerDirectory $DESTINATION_FOLDER
     mv /etc/systemd/system/rsa-nw-correlation-server.service.d/* $DESTINATION_FOLDER/systemd
     systemctl daemon-reload
-    yum reinstall rsa-nw-esper-enterprise -y -q 2> /dev/null
 fi
 
 esaAnalyticsServerDirectory="/etc/netwitness/esa-analytics-server"
 if [ -d $esaAnalyticsServerDirectory ]; then
    echo "Moving $esaAnalyticsServerDirectory to $DESTINATION_FOLDER"
-   #yum remove rsa-nw-node-infra-server -y 2> /dev/null
    mv $esaAnalyticsServerDirectory $DESTINATION_FOLDER
    mv /etc/systemd/system/rsa-nw-esa-analytics-server.service.d/* $DESTINATION_FOLDER/systemd
    systemctl daemon-reload
@@ -106,18 +111,11 @@ fi
 endpointServerDirectory="/etc/netwitness/endpoint-server"
 if [ -d $endpointServerDirectory ]; then
    echo "Moving $endpointServerDirectory to $DESTINATION_FOLDER"
-   echo "Please note that for this specific service a redeployment of the agents may be expected."
-   #yum remove rsa-nw-endpoint-server -y 2> /dev/null
+   echo "Please note that for this specific service, a redeployment of the agents may be expected."
    mv $endpointServerDirectory $DESTINATION_FOLDER
    mv /etc/systemd/system/rsa-nw-endpoint-server.service.d/* $DESTINATION_FOLDER/systemd
-   #The purpose of these two lines is so that Chef knows not try and reconfigure an already configured mongo.
-   mkdir -p /etc/netwitness/platform/mongo
-   touch /etc/netwitness/platform/mongo/mongo.registered
    systemctl daemon-reload
 fi
 
-echo "Reinstalling cookbooks and component-descriptor rpms to ensure that we can continue to reinstall. \
-If this step fails and nwsetup-tui complains about missing cookbooks, you may need to find a way to do this manaully."
-#yum reinstall rsa-nw-config-management rsa-nw-component-descriptor -y 2> /dev/null
 echo "Please also note that if you have ever had to make workarounds in the chef recipes, you will need to reapply them accordingly."
 echo "The backing up and moving of files is now complete. Please rerun nwsetup-tui to discover the host on the new Admin Node."
