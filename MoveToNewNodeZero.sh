@@ -41,7 +41,7 @@ if systemctl list-units --all | grep mongod ; then
 fi
 
 #Stop any relevant services
-serviceNames=("nwappliance" "nwlogcollector" "nwlogdecoder" "nwconcentrator" "nwbroker" "nwarchiver" "nwdecoder" "mongod" "rabbitmq-server" "rsa-nw-contexthub-server" "rsa-nw-correlation-server" "rsa-nw-esa-analytics-server" "rsa-nw-node-infra-server")
+serviceNames=("nwappliance" "nwlogcollector" "nwlogdecoder" "nwconcentrator" "nwbroker" "nwarchiver" "nwworkbench" "nwdecoder" "mongod" "rabbitmq-server" "rsa-nw-contexthub-server" "rsa-nw-correlation-server" "rsa-nw-esa-analytics-server" "rsa-nw-node-infra-server")
 echo "Stopping services before going further. If this seems like it can be stuck for an excessive amount of time, you may Ctrl + C and rerun the script after you manually stop them."
 for service in ${serviceNames[@]}; do
     if systemctl is-active --quiet $service ; then
