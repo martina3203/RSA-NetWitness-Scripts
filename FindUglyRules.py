@@ -19,6 +19,7 @@ This script is meant for Python 2.7 and assumes mongoexport is in the PATH.')
 parser.add_argument("--host", help='By default, this script should be targetting the admin server (nw-node-zero). Use this parameter to override this functionality or if name resolution doesn\'t quite work. \
 You can also concatenate a port at the end of the host to use it.',default="nw-node-zero")
 parser.add_argument("-p","--password", help='Define the password the user will use to connect to the Mongo database. This should be your deployment password. If this parameter is not provided, you will be prompted')
+parser.add_argument("-a","--all",help='This parameter tells the script to include all rules in the return output regardless of having suggestions or',default=False,action="store_true")
 args = parser.parse_args()
 
 #Function that asks for password and connects to mongo
@@ -38,7 +39,6 @@ def GetEntriesInCollection(password,collectionName):
     return output
 
 def ReviewDeployedRules(deployments,rules):
-    BadRuleCounter=0
     #Check the Collection for each deployment the customer has.
     try:   
         deploymentJson =  json.loads(deployments)
@@ -51,14 +51,16 @@ def ReviewDeployedRules(deployments,rules):
                 #We will attempt to treat it as an AdvancedRule
                 ruleResult = ParseRuleText(i,rules)
                 if (len(ruleResult) != 0):
-                    printStandardOutput(deploymentName,ruleResult)
-                    BadRuleCounter = BadRuleCounter + 1
-        BadRuleCounter = 0
+                    #By default, we only return the values we have suggestions for. If defined, we will include anything.
+                    if (args.all == True or ruleResult["uglyReason"] != "N/A"):
+                        printStandardOutput(deploymentName,ruleResult)
     except:
         print("Failed to parse Synchroninzation JSON. Please confirm the mongoexport of synchronization collection is valid JSON.")
         exit(3)
     return
 
+#This function does the heavy lifting. It looks at the ESA Advanced rules and scans the raw text for common indicators that should be reviewed.
+#For Rule Builder rules, We review some attributes to determine if it could be a problem or not.
 def ParseRuleText(rule,jsonRuleOutput):
     output={}
     try:
@@ -73,33 +75,45 @@ def ParseRuleText(rule,jsonRuleOutput):
                 if (rule["type"] == "ESA_ADVANCED"):
                     if "text" in rule:
                         #Now, we give the raw text and run some basic test to determine if it's ugly or not. If so, we shall tell you why I think that.
+                        output["name"] = str(rule["name"])
+                        output["type"] = str(rule["type"])
+                        output["text"] = str(rule["text"])
                         isItUgly = Ugly(rule["text"])
                         if (isItUgly):
-                            output["name"] = str(rule["name"])
-                            output["type"] = str(rule["type"])
-                            output["text"] = str(rule["text"])
                             output["uglyReason"] = isItUgly
-                            return output
+                        else:
+                            output["uglyReason"] = "N/A"
+                        return output
                 #We have to inspect the individual elements of the BASIC Rule since no Esper is compiled until runtime.
                 elif (rule["type"] == "ESA_BASIC"):
                     if "statements" in rule:
                         statementArray = rule["statements"]
+                        rawText=""
+                        #We work through eac statement and build up rawText that contains attributes about the rule.
                         for statement in statementArray:
                             if ("statementLines" in statement):
-                                rawText=""
                                 #This section reviews each individual statement looking for certain attribtutes such as Contains or ToLowerCase()
                                 for individualStatement in statement["statementLines"]:
-                                    if ("Contains" in individualStatement and "metaKeyId" in individualStatement):
+                                    if (("conditionId" in individualStatement and individualStatement["conditionId"] == "Contains") and "metaKeyId" in individualStatement):
                                         rawText = rawText + "LIKE paired with " + individualStatement["metaKeyId"] + "\n"
                                     elif ("ignoreCase" in individualStatement and "metaKeyId" in individualStatement):
-                                        rawText = rawText + ".toLowerCase paired with " + individualStatement["metaKeyId"] + "\n"
-                                isItUgly = Ugly(rawText)
-                                if (isItUgly):
-                                    output["name"] = str(rule["name"])
-                                    output["type"] = str(rule["type"])
-                                    output["text"] = str(rawText)
-                                    output["uglyReason"] = isItUgly
-                                    return output
+                                        rawText = rawText + "ignoreCase paired with " + individualStatement["metaKeyId"] + "\n"
+                        isItUgly = Ugly(rawText)
+                        output["name"] = str(rule["name"])
+                        output["type"] = str(rule["type"])
+                        output["text"] = str(rawText)
+                        if (isItUgly):
+                            output["uglyReason"] = isItUgly
+                        else:
+                            output["uglyReason"] = "N/A"
+                        return output
+                #This sections covers all other rules. These are Live Rules or out of the box rules
+                else:
+                    output["name"] = str(rule["name"])
+                    output["type"] = str(rule["type"])
+                    output["text"] = "Ignored as it's not customizable. Still could be optimized so please review the Raw Esper of the Rule based on your settings."
+                    output["uglyReason"] = "N/A"
+                    return output
     except: 
         print("Failed to parse Rule JSON. Please confirm the mongoexport of rules collection is valid JSON." )
         exit(4)
@@ -113,7 +127,7 @@ def Ugly(rawRuleText):
     if ("REGEXP" in rawRuleText or "regexp" in rawRuleText):
         ugly = ugly + "REGEXP is a potentially CPU expensive operation. Please ensure you are using it properly and deem it absolutely necessary. Otherwise, disable the rule or optimize it further."
     #Check for lower case or upper case functions which can be unnecessary.
-    if (".toLowerCase" in rawRuleText or ".toUpperCase" in rawRuleText):
+    if (".toLowerCase" in rawRuleText or ".toUpperCase" in rawRuleText or "ignoreCase" in rawRuleText):
         ugly = ugly + "Be sure that you are using the toLowerCase(), toUpperCase() or isOneOfIgnoreCase functions correctly. For instance, if you use it on a numerical value, such as a port number, this will prove redundant and will be a waste of CPU resources."
     #Check for groupwin which may not be necessary.
     if (".std:groupwin" in rawRuleText):
