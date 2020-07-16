@@ -13,6 +13,8 @@ MONGO_RULES_COLLECTION="rule"
 MONGO_DEPLOYMENT_COLLECTION="synchronization"
 MONGO_USER="deploy_admin"
 
+LONG_STATEMENT_CHARACTER_LIMIT=120
+
 #Set up parser parameters section.
 parser = argparse.ArgumentParser(description='This script looks for common signs of rules that may be poorly optimized. Note, this may not indicate that the rule is 100% bad but may be worth reviewing. \
 This script is meant for Python 2.7 and assumes mongoexport is in the PATH.')
@@ -42,21 +44,21 @@ def ReviewDeployedRules(deployments,rules):
     #Check the Collection for each deployment the customer has.
     try:   
         deploymentJson =  json.loads(deployments)
-        for deployment in deploymentJson:
-            #Grab the list of rules
-            deploymentName = deployment["name"]
-            deploymentRuleList = deployment["esaRuleInfos"]
-            #Now, find the correspond rule and inspect it for ugliness
-            for i in deploymentRuleList:
-                #We will attempt to treat it as an AdvancedRule
-                ruleResult = ParseRuleText(i,rules)
-                if (len(ruleResult) != 0):
-                    #By default, we only return the values we have suggestions for. If defined, we will include anything.
-                    if (args.all == True or ruleResult["uglyReason"] != "N/A"):
-                        printStandardOutput(deploymentName,ruleResult)
     except:
-        print("Failed to parse Synchroninzation JSON. Please confirm the mongoexport of synchronization collection is valid JSON.")
+        print("Failed to parse Synchronization JSON. Please confirm the mongoexport of synchronization collection is of valid JSON.")
         exit(3)
+    for deployment in deploymentJson:
+        #Grab the list of rules
+        deploymentName = deployment["name"]
+        deploymentRuleList = deployment["esaRuleInfos"]
+        #Now, find the correspond rule and inspect it for ugliness
+        for i in deploymentRuleList:
+            #We will attempt to treat it as an AdvancedRule
+            ruleResult = ParseRuleText(i,rules)
+            if (len(ruleResult) != 0):
+                #By default, we only return the values we have suggestions for. If defined, we will include anything.
+                if (args.all == True or ruleResult["uglyReason"] != "N/A"):
+                    printStandardOutput(deploymentName,ruleResult)
     return
 
 #This function does the heavy lifting. It looks at the ESA Advanced rules and scans the raw text for common indicators that should be reviewed.
@@ -67,56 +69,61 @@ def ParseRuleText(rule,jsonRuleOutput):
         ruleCollection = json.loads(jsonRuleOutput)
         #Find the corresponding rule in the collection.
         ruleId = rule["ruleId"]
-        for rule in ruleCollection:
-            #Not all rules will actually have text tied with them. Think rule builder or Endpoint Rules.
-            #I had to compile a string that matches a unicode formatted string for laziness. There is probably a better way to do this but this works. 
-            oidString="{u'$oid': u'" + ruleId +"'}"
-            if (ruleId == rule["_id"]) or (oidString == str(rule["_id"])):
-                if (rule["type"] == "ESA_ADVANCED"):
-                    if "text" in rule:
-                        #Now, we give the raw text and run some basic test to determine if it's ugly or not. If so, we shall tell you why I think that.
-                        output["name"] = str(rule["name"])
-                        output["type"] = str(rule["type"])
-                        output["text"] = str(rule["text"])
-                        isItUgly = Ugly(rule["text"])
-                        if (isItUgly):
-                            output["uglyReason"] = isItUgly
-                        else:
-                            output["uglyReason"] = "N/A"
-                        return output
-                #We have to inspect the individual elements of the BASIC Rule since no Esper is compiled until runtime.
-                elif (rule["type"] == "ESA_BASIC"):
-                    if "statements" in rule:
-                        statementArray = rule["statements"]
-                        rawText=""
-                        #We work through eac statement and build up rawText that contains attributes about the rule.
-                        for statement in statementArray:
-                            if ("statementLines" in statement):
-                                #This section reviews each individual statement looking for certain attribtutes such as Contains or ToLowerCase()
-                                for individualStatement in statement["statementLines"]:
-                                    if (("conditionId" in individualStatement and individualStatement["conditionId"] == "Contains") and "metaKeyId" in individualStatement):
-                                        rawText = rawText + "LIKE paired with " + individualStatement["metaKeyId"] + "\n"
-                                    elif ("ignoreCase" in individualStatement and "metaKeyId" in individualStatement):
-                                        rawText = rawText + "ignoreCase paired with " + individualStatement["metaKeyId"] + "\n"
-                        isItUgly = Ugly(rawText)
-                        output["name"] = str(rule["name"])
-                        output["type"] = str(rule["type"])
-                        output["text"] = str(rawText)
-                        if (isItUgly):
-                            output["uglyReason"] = isItUgly
-                        else:
-                            output["uglyReason"] = "N/A"
-                        return output
-                #This sections covers all other rules. These are Live Rules or out of the box rules
-                else:
-                    output["name"] = str(rule["name"])
-                    output["type"] = str(rule["type"])
-                    output["text"] = "Ignored as it's not customizable. Still could be optimized so please review the Raw Esper of the Rule based on your settings."
-                    output["uglyReason"] = "N/A"
-                    return output
     except: 
         print("Failed to parse Rule JSON. Please confirm the mongoexport of rules collection is valid JSON." )
         exit(4)
+    for rule in ruleCollection:
+        #Not all rules will actually have text tied with them. Think rule builder or Endpoint Rules.
+        #I had to compile a string that matches a unicode formatted string for laziness. There is probably a better way to do this but this works. 
+        oidString="{u'$oid': u'" + ruleId +"'}"
+        if (ruleId == rule["_id"]) or (oidString == str(rule["_id"])):
+            if (rule["type"] == "ESA_ADVANCED"):
+                if "text" in rule:
+                    #Now, we give the raw text and run some basic test to determine if it's ugly or not. If so, we shall tell you why I think that.
+                    output["name"] = str(rule["name"])
+                    output["type"] = str(rule["type"])
+                    output["text"] = str(rule["text"])
+                    isItUgly = Ugly(rule["text"])
+                    if (isItUgly):
+                        output["uglyReason"] = isItUgly
+                    else:
+                        output["uglyReason"] = "N/A"
+                    return output
+            #We have to inspect the individual elements of the BASIC Rule since no Esper is compiled until runtime.
+            elif (rule["type"] == "ESA_BASIC"):
+                if "statements" in rule:
+                    statementArray = rule["statements"]
+                    rawText=""
+                    #We work through eac statement and build up rawText that contains attributes about the rule.
+                    for statement in statementArray:
+                        if ("statementLines" in statement):
+                            #This section reviews each individual statement looking for certain attribtutes such as Contains or ToLowerCase()
+                            for individualStatement in statement["statementLines"]:
+                                if ({"metaKeyId","value"} <= set(individualStatement.viewkeys())):
+                                    StatementValueLength = len(str(individualStatement["value"]))
+                                    if ("conditionId" in individualStatement and individualStatement["conditionId"] == "Contains"):
+                                        rawText = rawText + "LIKE used with Meta key " + individualStatement["metaKeyId"] + " with value(s) " + individualStatement["value"] + "\n"
+                                    if ("ignoreCase" in individualStatement and individualStatement["ignoreCase"] == True):
+                                        rawText = rawText + "ignoreCase used with Meta key " + individualStatement["metaKeyId"] + " with value(s): " + individualStatement["value"] + "\n"
+                                    #The purpose of this statement is note long lists of values for a single statement based on a character limit that we define.
+                                    if (StatementValueLength > LONG_STATEMENT_CHARACTER_LIMIT):
+                                        rawText = rawText + "Long value statement of " + str(StatementValueLength) + "\n"
+                    isItUgly = Ugly(rawText)
+                    output["name"] = str(rule["name"])
+                    output["type"] = str(rule["type"])
+                    output["text"] = str(rawText)
+                    if (isItUgly):
+                        output["uglyReason"] = isItUgly
+                    else:
+                        output["uglyReason"] = "N/A"
+                    return output
+            #This sections covers all other rules. These are Live Rules or out of the box rules
+            else:
+                output["name"] = str(rule["name"])
+                output["type"] = str(rule["type"])
+                output["text"] = "Ignored as it's not customizable. Still could be optimized so please review the Raw Esper of the Rule based on your settings."
+                output["uglyReason"] = "N/A"
+                return output
     return output
 
 #This function goes through the raw text of the rule and then isolates attributes of it that can be detrimental to performance.
@@ -135,6 +142,10 @@ def Ugly(rawRuleText):
     #Check for LIKE statements or similar.
     if ("LIKE" in rawRuleText or "matchLike" in rawRuleText or "matchRegex" in rawRuleText):
         ugly = ugly + "Please be mindful that any LIKE or REGEX operations can be CPU expensive, especially for long string values such as event_desc. Please be sure that you are using them efficiently."
+    if ('Long value statement' in rawRuleText):
+        ugly = ugly + "We detected a very long statement that may need to reviewed. If you find yourself using really long lists of hostnames, for instance, you should consider combining this into a feed and tagging the events. \n Simplifying a statment to host.list = 'database_whitelist' may prove to be a better approach here."
+        
+
     return ugly
 
 #This function is what we will use to print the rules as we see them.
