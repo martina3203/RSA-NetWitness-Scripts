@@ -109,9 +109,9 @@ def ParseRuleText(rule,jsonRuleOutput):
                                     if (StatementValueLength > LONG_STATEMENT_CHARACTER_LIMIT):
                                         rawText = rawText + "Long value statement of " + str(StatementValueLength) + "\n"
                     isItUgly = Ugly(rawText)
-                    output["name"] = str(rule["name"])
-                    output["type"] = str(rule["type"])
-                    output["text"] = str(rawText)
+                    output["name"] = rule["name"].encode('utf-8')
+                    output["type"] = rule["type"].encode('utf-8')
+                    output["text"] = rawText.encode('utf-8')
                     if (isItUgly):
                         output["uglyReason"] = isItUgly
                     else:
