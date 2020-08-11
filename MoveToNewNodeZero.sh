@@ -55,16 +55,17 @@ mkdir -p $DESTINATION_FOLDER/systemd
 yum clean all -q 2> /dev/null
 
 #We are checking for a mongo instance. We will be changing the password before proceeding.
-if systemctl list-units --all | grep mongod ; then
+if systemctl list-units --all | grep -q mongod ; then
     echo "A Mongo Instance has been detected on this device. Please provide the deployment password of the old environment so that we may login to mongo to change it to match the deployment password of the new environment."
     echo "If you are unsure about the old password, please use KB 000037015 to reset the Mongo password in the backend then rerun this script."
     echo "If the password is the same because it just is or you have already changed the password, just type the same password twice."
     read -s -p 'Current Deployment password currently being used by the mongo: ' oldPassword
     echo ""
     read -s -p 'New Deployment password: ' newPassword
-    if mongo -u deploy_admin -p "${oldPassword}" --authenticationDatabase admin --eval "db=db.getSiblingDB(\"admin\");db.changeUserPassword(\"deploy_admin\",\"${newPassword}\")"; then
+    if mongo -u deploy_admin -p "${oldPassword}" --authenticationDatabase admin --eval "db=db.getSiblingDB(\"admin\");db.changeUserPassword(\"deploy_admin\",\"${newPassword}\")" --quiet; then
         mkdir -p /etc/netwitness/platform/mongo
         touch /etc/netwitness/platform/mongo/mongo.registered
+        echo "Please be sure that /etc/netwitness/platform/mongo/mongo.registered is created as a result of this command."
     else 
         echo "Unable to change current mongodb password. Please confirm you have the correct password or follow KB article https://community.rsa.com/docs/DOC-100186 to change it in the backend for this host. Then, you may type the same password again twice for old and new."
         exit 1
@@ -72,7 +73,7 @@ if systemctl list-units --all | grep mongod ; then
 fi
 
 #Stop any relevant services
-serviceNames=("nwappliance" "nwlogcollector" "nwlogdecoder" "nwconcentrator" "nwbroker" "nwarchiver" "nwworkbench" "nwdecoder" "mongod" "rabbitmq-server" "rsa-nw-contexthub-server" "rsa-nw-correlation-server" "rsa-nw-esa-analytics-server" "rsa-nw-node-infra-server")
+serviceNames=("salt-minion" "nwappliance" "nwlogcollector" "nwlogdecoder" "nwconcentrator" "nwbroker" "nwarchiver" "nwworkbench" "nwdecoder" "mongod" "rabbitmq-server" "rsa-nw-contexthub-server" "rsa-nw-correlation-server" "rsa-nw-esa-analytics-server" "rsa-nw-node-infra-server")
 echo "Stopping services before going further. If this seems like it can be stuck for an excessive amount of time, you may Ctrl + C and rerun the script after you manually stop them."
 for service in ${serviceNames[@]}; do
     if systemctl is-active --quiet $service ; then
