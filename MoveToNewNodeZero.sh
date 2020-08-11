@@ -6,7 +6,7 @@
 # 2. Execute this script on the host you are trying to move. Do NOT run this on the Admin Server.
 # 3. nwsetup-tui in install mode on the host and rediscovery it in the UI. If it says you have a backup to restore, don't use it. This is your 10.6 backup and in most cases should be removed.
 # 4. Install the service in the GUI or command line of the Admin Server.
-#This script is written to be version agnostic but is only meant with 11.3+ hosts in mind.
+#This script is written to be version agnostic but is only meant with 11.3+ hosts in mind but I put logic just in case for 11.2 ESA's
 #Please note that at this time, this script is only certified completely for core devices and your mileage may vary on other Launch devices like ESA and Endpoint.
 #Just because the service installs does not mean you are done. You should check that every aspect of that service is functioning as expected a result.
 
@@ -26,9 +26,9 @@ cleanLaunchService() {
     #If we find special conditions for various launch services, we shall carry out those steps here.
     case $serviceName in
         "rsa-nw-endpoint-server")
-            echo "Please note this process is not guaranteed to work on Endpoint Servers."
+            echo -e "/e[93mPlease note this process is not guaranteed to work on Endpoint Servers."
             echo "You should be expecting to redeploy the agents as a result." ;;
-        "rsa-nw-correlation-server")
+        "rsa-nw-correlation-server" | "rsa-nw-esa-server")
             echo "Please note that you may need to update the Incident Counter on the Admin Server if this device will be the new ESA Primary and the previous INC counter is at a lower value."
             echo "Please see the KB article where you found this script for more details on this process.";;
     esac
@@ -36,11 +36,11 @@ cleanLaunchService() {
 
 #sanity checks to make sure this is not an Admin Server, otherwise we are quitting.
 if grep "node-zero" /etc/netwitness/platform/nw-node-type; then 
-    echo "Script detected this is not a valid host to run this script on after reviewing /etc/netwitness/platform/nw-node-type. Exitting..."
+    echo -e "\e[91mScript detected this is not a valid host to run this script on after reviewing /etc/netwitness/platform/nw-node-type. Exiting..."
     exit 0
 fi
 if rpm -qa | grep "admin-server"; then
-    echo "Detected Admin Server rpms on host. Please confirm this is not an Admin Server before attempting again. Exitting..."
+    echo -e "\e[91mDetected Admin Server rpms on host. Please confirm this is not an Admin Server before attempting again. Exiting..."
     exit 0
 fi 
 
@@ -65,9 +65,9 @@ if systemctl list-units --all | grep -q mongod ; then
     if mongo -u deploy_admin -p "${oldPassword}" --authenticationDatabase admin --eval "db=db.getSiblingDB(\"admin\");db.changeUserPassword(\"deploy_admin\",\"${newPassword}\")" --quiet; then
         mkdir -p /etc/netwitness/platform/mongo
         touch /etc/netwitness/platform/mongo/mongo.registered
-        echo "Please be sure that /etc/netwitness/platform/mongo/mongo.registered is created as a result of this command."
+        echo -e "\e[93mPlease be sure that the empty file /etc/netwitness/platform/mongo/mongo.registered is created as a result of this command."
     else 
-        echo "Unable to change current mongodb password. Please confirm you have the correct password or follow KB article https://community.rsa.com/docs/DOC-100186 to change it in the backend for this host. Then, you may type the same password again twice for old and new."
+        echo -e "\e[91mUnable to change current mongodb password. Please confirm you have the correct password or follow KB article https://community.rsa.com/docs/DOC-100186 to change it in the backend for this host. Then, you may type the same password again twice for old and new."
         exit 1
     fi
 fi
@@ -112,6 +112,7 @@ cleanLaunchService /etc/netwitness/node-infra-server rsa-nw-node-infra-server
 cleanLaunchService /etc/netwitness/contexthub-server rsa-nw-contexthub-server
 cleanLaunchService /etc/netwitness/correlation-server rsa-nw-correlation-server
 cleanLaunchService /etc/netwitness/esa-analytics-server rsa-nw-esa-analytics-server
+cleanLaunchService /etc/netwitness/esa-server rsa-nw-esa-server
 cleanLaunchService /etc/netwitness/endpoint-server rsa-nw-endpoint-server
 systemctl daemon-reload
 
