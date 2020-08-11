@@ -26,7 +26,7 @@ cleanLaunchService() {
     #If we find special conditions for various launch services, we shall carry out those steps here.
     case $serviceName in
         "rsa-nw-endpoint-server")
-            echo -e "/e[93mPlease note this process is not guaranteed to work on Endpoint Servers."
+            echo -e "/e[93mPlease note this process is not guaranteed to work on Endpoint Servers.\e[39m"
             echo "You should be expecting to redeploy the agents as a result." ;;
         "rsa-nw-correlation-server" | "rsa-nw-esa-server")
             echo "Please note that you may need to update the Incident Counter on the Admin Server if this device will be the new ESA Primary and the previous INC counter is at a lower value."
@@ -36,11 +36,11 @@ cleanLaunchService() {
 
 #sanity checks to make sure this is not an Admin Server, otherwise we are quitting.
 if grep "node-zero" /etc/netwitness/platform/nw-node-type; then 
-    echo -e "\e[91mScript detected this is not a valid host to run this script on after reviewing /etc/netwitness/platform/nw-node-type. Exiting..."
+    echo -e "\e[91mScript detected this is not a valid host to run this script on after reviewing /etc/netwitness/platform/nw-node-type. Exiting...\e[39m"
     exit 0
 fi
 if rpm -qa | grep "admin-server"; then
-    echo -e "\e[91mDetected Admin Server rpms on host. Please confirm this is not an Admin Server before attempting again. Exiting..."
+    echo -e "\e[91mDetected Admin Server rpms on host. Please confirm this is not an Admin Server before attempting again. Exiting...\e[39m"
     exit 0
 fi 
 
@@ -65,9 +65,9 @@ if systemctl list-units --all | grep -q mongod ; then
     if mongo -u deploy_admin -p "${oldPassword}" --authenticationDatabase admin --eval "db=db.getSiblingDB(\"admin\");db.changeUserPassword(\"deploy_admin\",\"${newPassword}\")" --quiet; then
         mkdir -p /etc/netwitness/platform/mongo
         touch /etc/netwitness/platform/mongo/mongo.registered
-        echo -e "\e[93mPlease be sure that the empty file /etc/netwitness/platform/mongo/mongo.registered is created as a result of this command."
+        echo -e "\e[93mPlease be sure that the empty file /etc/netwitness/platform/mongo/mongo.registered is created as a result of this command.\e[39m"
     else 
-        echo -e "\e[91mUnable to change current mongodb password. Please confirm you have the correct password or follow KB article https://community.rsa.com/docs/DOC-100186 to change it in the backend for this host. Then, you may type the same password again twice for old and new."
+        echo -e "\e[91mUnable to change current mongodb password. Please confirm you have the correct password or follow KB article https://community.rsa.com/docs/DOC-100186 to change it in the backend for this host. Then, you may type the same password again twice for old and new.\e[39m"
         exit 1
     fi
 fi
