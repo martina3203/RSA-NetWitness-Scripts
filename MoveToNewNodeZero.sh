@@ -13,7 +13,7 @@
 #This is where we will backup our files
 DESTINATION_FOLDER="/tmp/PreviousNodeZeroFiles.`date +%Y-%b-%d-%H%M`"
 COMMON_DIRECTORIES=("/etc/netwitness/platform" "/etc/netwitness/security-cli" "/etc/pki/nw" "/etc/netwitness/orchestration-client")
-CORE_SERVICE_DIRECTORIES=("/etc/netwitness/ng/appliance" "/etc/netwitness/ng/logcollector" "/etc/netwitness/ng/logdecoder" "/etc/netwitness/ng/decoder" "/etc/netwitness/ng/broker" "/etc/netwitness/ng/archiver" "/etc/netwitness/ng/concentrator" "/etc/netwitness/ng/rabbitmq")
+CORE_SERVICE_DIRECTORIES=("/etc/netwitness/ng/appliance" "/etc/netwitness/ng/logcollector" "/etc/netwitness/ng/logdecoder" "/etc/netwitness/ng/decoder" "/etc/netwitness/ng/broker" "/etc/netwitness/ng/archiver" "/etc/netwitness/ng/concentrator" )
 
 
 #This function is reserved for cleaning the common launches services which generally have the same sort of steps that must be performed.
