@@ -1,6 +1,9 @@
 #!/bin/python
-#This script is written with the naive intention of setting off UEBA events so that it seems like it's doing something.
-
+"""
+#This script is written with the naive intention of setting off UEBA events so that it seems like it's doing something. The idea is to run the script many different times at potentially different intervals to generate UEBA alerts for data that may already exist. The parameters are the potential meta keys that you would see in a normal winevent_nic event.
+SpamUEBA.py --host 10.237.174.41 --user_dst martia49 --device_host ADExample.example.com --host_src MartinWorkstation --domain CS -e 4720
+You can play with this script without sending any logs by providing the --do_not_send parameter. By default it will send.
+"""
 import datetime
 import socket
 import argparse
