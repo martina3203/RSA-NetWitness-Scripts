@@ -8,7 +8,7 @@ import datetime
 import socket
 import argparse
 
-parser = argparse.ArgumentParser(description='This script sends events as defined to UEBA based on the criteria provided. The present events included in those script simulate those that come WinRM/winevent_nic integrations.')
+parser = argparse.ArgumentParser(description='This script sends events as defined to a log decoder to be ingested later by UEBA based on the criteria provided. The present events included in those script simulate those that come WinRM/winevent_nic integrations. Presently, only the following Windows events are available: 4624,4625,4720,4767')
 parser.add_argument("--host", help='This is the Log Decoder/Syslog Server host we will be sending our packets to. It will default to localhost',default="localhost")
 parser.add_argument("-p","--port", help='This is the port we will be sending our syslog to. It will default to 514',default=514)
 parser.add_argument("--do_not_send",help='By default, we send the event to the destination log device. You can opt not to send it if you just want a template of what it would look like.',default=True,action="store_false")
