@@ -74,6 +74,8 @@ mkdir -p $DESTINATION_FOLDER/systemd
 #We are checking for a mongo instance. We will be changing the password before proceeding to prevent error
 checkMongo() {
     if systemctl list-units --all | grep -q mongod ; then
+        mkdir -p /etc/netwitness/platform/mongo
+        touch /etc/netwitness/platform/mongo/mongo.registered
         echo "A Mongo Instance has been detected on this device. Please provide the deployment password of the old environment so that we may login to mongo to change it to match the deployment password of the new environment."
         echo "If you are unsure about the old password, please use KB 000037015 to reset the Mongo password in the backend then rerun this script."
         echo "If the password is the same because it just is or you have already changed the password, just type the same password twice."
@@ -83,8 +85,6 @@ checkMongo() {
         mongo -u deploy_admin -p "${oldPassword}" --authenticationDatabase admin --eval "db=db.getSiblingDB(\"admin\");db.changeUserPassword(\"deploy_admin\",\"${newPassword}\")" || 
         exitError "Unable to change current mongodb password. Please confirm you have the correct password or follow KB article https://community.rsa.com/docs/DOC-100186 to change it in the backend for this host. Then, you may type the same password again twice for old and new."
         #Create the corresponding marker files
-        mkdir -p /etc/netwitness/platform/mongo
-        touch /etc/netwitness/platform/mongo/mongo.registered
     fi
 }
 
