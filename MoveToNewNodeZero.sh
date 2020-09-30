@@ -26,9 +26,8 @@ cleanLaunchService() {
         mv -f $launchDirectory $DESTINATION_FOLDER
         echo "Moving $serviceName service definition to $DESTINATION_FOLDER/systemd"
         mv -f /etc/systemd/system/$serviceName.service.d/* $DESTINATION_FOLDER/systemd
-    fi
-    #If we find special conditions for various launch services, we shall carry out those steps here.
-    case $serviceName in
+        #If we find special conditions for various launch services, we shall carry out those steps here.
+        case $serviceName in
         "rsa-nw-endpoint-server")
             warning "Please note this process is not guaranteed to work on Endpoint Servers."
             warning "You may be expected to redeploy the agents as a result." 
@@ -39,7 +38,8 @@ cleanLaunchService() {
         "rsa-nw-correlation-server" | "rsa-nw-esa-server")
             warning "Please note that you may need to update the Incident Counter on the Admin Server if this device will be the new ESA Primary and the previous INC counter is at a lower value."
             warning "Please see the KB article where you found this script for more details on this process.";;
-    esac
+        esac
+    fi
 }
 
 #These functions are merely for my color coding messages
