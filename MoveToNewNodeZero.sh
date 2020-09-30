@@ -116,6 +116,7 @@ backupDirectory() {
 
 checkNotNodeZero
 checkMongo
+stopServices
 #This resets the salt master public key that is stored on the device.
 mv -f /etc/salt/pki/minion/minion_master.pub $DESTINATION_FOLDER/salt
 #Let's not have a bad yum cache
